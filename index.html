@@ -1872,9 +1872,18 @@ function preventZoomGestures(){
   document.addEventListener('gestureend', e => e.preventDefault());
   document.addEventListener('touchmove', e => { if(e.touches.length > 1) e.preventDefault(); }, {passive:false});
   let lastTouchEnd = 0;
+  let lastTouchX = 0;
+  let lastTouchY = 0;
   document.addEventListener('touchend', e => {
     const now = Date.now();
-    if(now - lastTouchEnd <= 300) e.preventDefault();
+    const touch = e.changedTouches[0];
+    if(touch){
+      const closeInTime = (now - lastTouchEnd) <= 300;
+      const closeInSpace = Math.abs(touch.clientX - lastTouchX) < 30 && Math.abs(touch.clientY - lastTouchY) < 30;
+      if(closeInTime && closeInSpace) e.preventDefault();
+      lastTouchX = touch.clientX;
+      lastTouchY = touch.clientY;
+    }
     lastTouchEnd = now;
   }, {passive:false});
 }
