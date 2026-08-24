@@ -340,6 +340,7 @@
   .day-block{border:1px solid var(--border);border-radius:var(--radius-md);padding:16px 12px;margin-bottom:12px;}
   .day-block:last-child{margin-bottom:0;}
   .day-block h4{font-size:16px;font-weight:800;margin-bottom:12px;}
+  .day-focus{text-align:center;}
   .ex-table td:first-child{font-weight:600;color:var(--ink);}
   .m-table.ex-table th, .m-table.ex-table td{font-size:14.5px;padding:13px 10px;line-height:1.35;}
   .m-table.ex-table th:first-child, .m-table.ex-table td:first-child{padding-left:4px;}
@@ -824,7 +825,7 @@ function defaultState(){
   return { measurements: [], plans, activePlanId: active ? active.id : null, sessions: [], activeSession: null };
 }
 let state = defaultState();
-let ui = { tab:'home', chartMetric:'weight', chartHorizon:'3m', planDraft:null };
+let ui = { tab:'home', chartMetric:'weight', chartHorizon:'3m', planDraft:null, dayExIndex:{}, openPlanDetailId:null };
 
 function loadLocal(){
   try{ const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : null; }catch(e){ return null; }
@@ -890,6 +891,7 @@ function openSheet(html, opts){
 function closeSheet(){
   document.getElementById('sheetBackdrop').classList.remove('open');
   ui.planDraft = null;
+  ui.openPlanDetailId = null;
 }
 function confirmDialog(message, confirmLabel, onConfirm){
   openSheet(`
@@ -1279,26 +1281,38 @@ function renderPlans(){
 }
 
 function dayBlockHtml(d){
+  if(!d.exercises.length){
+    return `<div class="day-block"><h4>${escapeHtml(d.name)}</h4><div class="small muted">Nessun esercizio</div></div>`;
+  }
+  const total = d.exercises.length;
+  const idx = clamp(ui.dayExIndex[d.id] || 0, 0, total-1);
+  ui.dayExIndex[d.id] = idx;
+  const ex = d.exercises[idx];
   return `
     <div class="day-block">
       <h4>${escapeHtml(d.name)}</h4>
-      ${d.exercises.length ? `
-        <div class="table-wrap">
-          <table class="m-table ex-table">
-            <thead><tr><th>Esercizio</th><th class="num">Serie</th><th class="num">Reps</th><th class="num">Rec.</th></tr></thead>
-            <tbody>
-              ${d.exercises.map(ex => `
-                <tr>
-                  <td>${escapeHtml(ex.name)}</td>
-                  <td class="num">${ex.sets}</td>
-                  <td class="num">${escapeHtml(fmtReps(ex.reps))}</td>
-                  <td class="num">${fmtRest(ex.rest)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+      <div class="day-focus">
+        <div class="ex-focus-nav">
+          <button class="ex-nav-btn" data-action="day-prev-ex" data-day="${d.id}" data-total="${total}" ${idx===0?'disabled':''}>${ICONS.chevronLeft}</button>
+          <div class="ex-focus-index">Esercizio ${idx+1} di ${total}</div>
+          <button class="ex-nav-btn" data-action="day-next-ex" data-day="${d.id}" data-total="${total}" ${idx===total-1?'disabled':''}>${ICONS.chevron}</button>
         </div>
-      ` : '<div class="small muted">Nessun esercizio</div>'}
+        <div class="ex-focus-name">${escapeHtml(ex.name)}</div>
+        <div class="ex-focus-stats">
+          <div class="ex-focus-stat">
+            <div class="ex-focus-stat-value num">${ex.sets}</div>
+            <div class="ex-focus-stat-label">Serie</div>
+          </div>
+          <div class="ex-focus-stat">
+            <div class="ex-focus-stat-value num">${escapeHtml(fmtReps(ex.reps))}</div>
+            <div class="ex-focus-stat-label">Ripetizioni</div>
+          </div>
+        </div>
+        <div class="ex-focus-rest">Recupero ${fmtRest(ex.rest)}</div>
+        <div class="ex-dots-strip">
+          ${d.exercises.map((e,i)=>`<button class="ex-dot ${i===idx?'current':''}" data-action="day-jump-ex" data-day="${d.id}" data-total="${total}" data-idx="${i}" title="${escapeHtml(e.name)}"></button>`).join('')}
+        </div>
+      </div>
     </div>
   `;
 }
@@ -1333,6 +1347,7 @@ function archivedRowHtml(p){
 function openPlanDetailSheet(id){
   const p = state.plans.find(x=>x.id===id);
   if(!p) return;
+  ui.openPlanDetailId = id;
   openSheet(`
     <div class="sheet-handle"></div>
     <div class="sheet-header">
@@ -1901,6 +1916,16 @@ function wireEvents(){
       else s.currentExIndex = clamp(parseInt(btn.dataset.ex,10), 0, last);
       renderActiveSession(document.querySelector('[data-view="workout"]'));
       scheduleSave();
+    }
+    else if(a==='day-prev-ex' || a==='day-next-ex' || a==='day-jump-ex'){
+      const dayId = btn.dataset.day;
+      const last = parseInt(btn.dataset.total,10) - 1;
+      const cur = ui.dayExIndex[dayId] || 0;
+      if(a==='day-prev-ex') ui.dayExIndex[dayId] = clamp(cur-1, 0, last);
+      else if(a==='day-next-ex') ui.dayExIndex[dayId] = clamp(cur+1, 0, last);
+      else ui.dayExIndex[dayId] = clamp(parseInt(btn.dataset.idx,10), 0, last);
+      if(ui.openPlanDetailId) openPlanDetailSheet(ui.openPlanDetailId);
+      else render();
     }
     else if(a==='timer-toggle'){
       const s = state.activeSession;
