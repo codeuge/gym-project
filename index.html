@@ -132,8 +132,9 @@
     font-size:24px;font-weight:800;letter-spacing:-.01em;margin-top:2px;text-wrap:balance;
   }
   .topbar-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .topbar-title{min-width:0;flex:1;}
   .topbar-action{
-    position:relative;overflow:hidden;border-radius:8px;
+    position:relative;overflow:hidden;border-radius:8px;flex:none;
     display:inline-flex;align-items:center;gap:6px;
     background:none;border:none;color:var(--accent);font-weight:800;font-size:14px;padding:6px 4px;cursor:pointer;
     transition:transform .08s ease;
@@ -509,7 +510,7 @@
   <header class="topbar">
     <div class="topbar-inner">
       <div class="topbar-row">
-        <div>
+        <div class="topbar-title">
           <div class="eyebrow" id="tb-eyebrow">Ripresa</div>
           <h1 id="tb-title">Home</h1>
         </div>
